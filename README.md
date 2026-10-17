@@ -9,7 +9,7 @@ Godot 4.7 / GDScript / 2D。当前版本为 **0.1.0，首个可玩版本**。
 - **Windows：** 双击 `builds/HexElim.exe`，点击“开始游戏”或按空格。
 - **Godot：** 导入根目录的 `project.godot`，按 F5 运行。
 - 第一波在开始后的 3 秒生成，左下角显示倒计时。
-- 操作和建议审查步骤见 [试玩审查说明](docs/playtest_review.md)。
+
 
 ## 操作
 
