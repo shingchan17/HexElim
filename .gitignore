@@ -1,0 +1,10 @@
+# Godot editor/import cache. Keep source .uid files under version control.
+.godot/
+
+# Local exports and validation output.
+builds/
+artifacts/
+
+# Operating system files.
+Thumbs.db
+.DS_Store
