@@ -164,7 +164,7 @@ func _test_fall_and_speed() -> void:
 	_scene.scoring.total_score = 1000
 	_scene.next_wave_time = 0.01
 	_scene.step_game(0.02)
-	_check(is_equal_approx(_scene.current_wave_interval, 2.9), "next wave adopts the updated interval")
+	_check(is_equal_approx(_scene.current_wave_interval, 1.9), "next wave adopts the updated interval")
 	_check(_scene.rules.get_fall_speed(1000) > _scene.rules.get_fall_speed(0), "score increases movement speed")
 	_check(_scene.rules.get_fall_speed(1000000) <= 180.0, "movement speed has a configured cap")
 	_check(not _scene.falling_blocks.is_empty(), "wave clock produces actual falling pieces")
@@ -248,7 +248,7 @@ func _test_overflow_and_restart() -> void:
 	_check(_scene.falling_blocks.is_empty(), "restart removes airborne pieces")
 	_check(_scene.scoring.total_score == 0, "restart clears score")
 	_check(_scene.scoring.consecutive_clear_count == 0, "restart clears combo")
-	_check(is_equal_approx(_scene.next_wave_time, 3.0), "restart resets wave clock")
+	_check(is_equal_approx(_scene.next_wave_time, 2.0), "restart resets wave clock")
 	_check(_scene.board_view.bursts.is_empty(), "restart clears old effects")
 
 

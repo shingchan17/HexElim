@@ -1,6 +1,6 @@
 # HexElim（六角消除）
 
-Godot 4.7 / GDScript / 2D。当前版本为 **0.1.0，首个可玩版本**。
+Godot 4.7 / GDScript / 2D。当前版本为 **0.1.3，初始波次周期调整为 2 秒**。
 
 旋转中心六边形，接住四种颜色的方块，让至少三个同色方块相连并消除。在六边各十层的空间内持续生存，通过连续消除提高得分。
 
@@ -8,8 +8,14 @@ Godot 4.7 / GDScript / 2D。当前版本为 **0.1.0，首个可玩版本**。
 
 - **Windows：** 双击 `builds/HexElim.exe`，点击“开始游戏”或按空格。
 - **Godot：** 导入根目录的 `project.godot`，按 F5 运行。
-- 第一波在开始后的 3 秒生成，左下角显示倒计时。
+- 第一波在开始后的 2 秒生成，左下角显示倒计时。
 - 操作和建议审查步骤见 [试玩审查说明](docs/playtest_review.md)。
+
+默认窗口为 **1600×900**，可拖动边框放大或最大化。棋盘、文字和按钮一起等比例缩放；不同屏幕比例会留黑边，保持六边形形状。按 **F11 / Alt+Enter** 切换全屏，退出后恢复原来的窗口大小、位置或最大化状态。
+
+Godot 的 F5 嵌入预览由项目自带的 **HexElim Debug Preview** 编辑器插件配置。加载项目和运行前，插件会把正在使用的预览切换为 **Stretch to Fit（适应窗口）**，最大化预览后棋盘与界面一起放大。更新前已经打开 Godot 时，需重新打开项目以加载新插件。该插件随源码保存，不再依赖手动修改 `.godot/` 缓存文件。
+
+如果手动关闭了插件，可在游戏预览右上角的窗口菜单中选择 Stretch to Fit；Fixed Size（固定尺寸）会固定游戏视口。菜单说明见 [Godot 嵌入游戏说明](https://docs.godotengine.org/en/stable/tutorials/editor/game_embedding.html)。
 
 ## 操作
 
@@ -22,6 +28,7 @@ Godot 4.7 / GDScript / 2D。当前版本为 **0.1.0，首个可玩版本**。
 | R | 重新开始一局 |
 | 空格 / Enter | 开始游戏、结束后重开，或暂停时继续 |
 | M | 音效开关；也可点击右上角按钮 |
+| F11 / Alt+Enter | 全屏与窗口切换；游玩时也可点击右上角按钮 |
 
 A/D 每次按下执行一步，旋转动画约 0.14 秒；动画进行中不接受额外转动。在转动完成后落定方块，保证画面朝向与实际落点一致。
 
@@ -45,7 +52,7 @@ A/D 每次按下执行一步，旋转动画约 0.14 秒；动画进行中不接�
 
 ```text
 档位 = floor(总分 / 1000)
-生成间隔 = max(1.0, 3.0 - 0.1 × 档位) 秒
+生成间隔 = max(1.0, 2.0 - 0.1 × 档位) 秒
 下落速度 = min(180, 72 + 6 × 档位) 像素/秒
 ```
 
@@ -60,7 +67,8 @@ A/D 每次按下执行一步，旋转动画约 0.14 秒；动画进行中不接�
 - 中文界面、六边容量提示、危险边提示。
 - 旋转动画、消除闪光、粒子与收拢动画。
 - 合成的旋转、落定、消除和结束音效。
-- 1280×720 设计尺寸，保持比例缩放，最小窗口 960×540。
+- 默认窗口 1600×900，1280×720 逻辑画面按窗口等比例缩放，最小窗口 960×540。
+- 全屏快捷键与按钮，退出全屏恢复窗口大小、位置或最大化状态。
 
 ## 主要文件
 
@@ -78,9 +86,11 @@ game/scoring/score_manager.gd 连续计分状态
 game/rules/game_rules.gd     规则参数与计分、难度公式
 game/ui/game_hud.gd          中文 HUD、菜单与按钮
 game/audio/game_audio.gd     合成音效
+addons/hexelim_debug_preview/  编辑器内的 F5 预览缩放配置
 
 tests/test_scoring.gd        计分与时间窗口测试
 tests/test_gameplay.gd       棋盘与完整玩法流程测试
+tests/test_display.gd        实际窗口缩放、鼠标对齐与全屏测试
 docs/game_design.md          当前规则和实现说明
 docs/playtest_review.md      试玩审查指南
 ```
@@ -97,9 +107,12 @@ docs/playtest_review.md      试玩审查指南
 $taskGodotExe = 'D:\steamappliance\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe'
 & $taskGodotExe --headless --path . --script res://tests/test_scoring.gd
 & $taskGodotExe --headless --path . --script res://tests/test_gameplay.gd
+& $taskGodotExe --path . --audio-driver Dummy --script res://tests/test_display.gd
 ```
 
 首次在新机器运行命令行测试前，先在编辑器导入项目，或运行一次 `--headless --editor --path . --quit`，注册脚本类与导入图标。
+
+显示测试需要真实桌面窗口，不使用 `--headless`；会短暂切换全屏并保存截图到 `artifacts/`，默认尺寸检查要求桌面能容纳 1600×900 窗口。
 
 受限验证环境可能提示无法读取系统根证书、写入 `user://` 缓存；验证日志已保留。这些环境提示没有阻止项目运行、界面渲染或 Windows 导出。测试所用的引擎副本位于被忽略的临时目录，完成后会清理可执行文件和模板。
 
@@ -111,4 +124,4 @@ $taskGodotExe = 'D:\steamappliance\steamapps\common\Godot Engine\godot.windows.o
 & $taskGodotExe --headless --path . --export-release 'Windows Desktop' builds/HexElim.exe
 ```
 
-导出资源嵌入单个可执行文件，`docs/`、`tests/` 和 `artifacts/` 不参与打包。`builds/` 已在版本控制忽略列表中。
+导出资源嵌入单个可执行文件，`addons/`、`docs/`、`tests/` 和 `artifacts/` 不参与打包。`builds/` 已在版本控制忽略列表中。

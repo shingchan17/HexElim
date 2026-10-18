@@ -28,10 +28,10 @@ func _test_score_formula() -> void:
 	_check(rules.get_clear_score(3, 12) == 216, "combo is not capped at two")
 	_check(rules.get_clear_score(2, 1) == 0, "too few blocks cannot score")
 	_check(rules.get_clear_score(3, 0) == 0, "zero clear count cannot score")
-	_check(is_equal_approx(rules.get_spawn_interval(999), 3.0), "999-point interval")
-	_check(is_equal_approx(rules.get_spawn_interval(1000), 2.9), "1000-point interval")
-	_check(is_equal_approx(rules.get_spawn_interval(19999), 1.1), "last interval above minimum")
-	_check(is_equal_approx(rules.get_spawn_interval(20000), 1.0), "interval minimum")
+	_check(is_equal_approx(rules.get_spawn_interval(999), 2.0), "999-point interval")
+	_check(is_equal_approx(rules.get_spawn_interval(1000), 1.9), "1000-point interval")
+	_check(is_equal_approx(rules.get_spawn_interval(9999), 1.1), "last interval above minimum")
+	_check(is_equal_approx(rules.get_spawn_interval(10000), 1.0), "interval minimum")
 	_check(is_equal_approx(rules.get_spawn_interval(100000), 1.0), "interval stays at minimum")
 
 

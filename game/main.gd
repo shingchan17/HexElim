@@ -22,6 +22,9 @@ var _resolution_time: float = 0.0
 var _rotation_time: float = 0.0
 var _rotation_from: float = 0.0
 var _rotation_target: float = 0.0
+var _windowed_size := Vector2i(1600, 900)
+var _windowed_position := Vector2i.ZERO
+var _windowed_mode: Window.Mode = Window.MODE_WINDOWED
 
 
 func _ready() -> void:
@@ -39,6 +42,10 @@ func _ready() -> void:
 	hud.restart_requested.connect(start_game)
 	hud.pause_requested.connect(toggle_pause)
 	hud.sound_requested.connect(toggle_sound)
+	hud.fullscreen_requested.connect(toggle_fullscreen)
+	get_window().size_changed.connect(_update_fullscreen_button)
+	_remember_window()
+	_update_fullscreen_button()
 	hud.show_overlay("ready")
 	_update_hud()
 
@@ -50,6 +57,13 @@ func _draw() -> void:
 			draw_circle(Vector2(x, y), 0.6, Color(0.4, 0.62, 0.7, 0.055))
 	draw_line(Vector2(40, 84), Vector2(1240, 84), Color("1d3443"), 1.0, true)
 	draw_line(Vector2(40, 637), Vector2(1240, 637), Color("1d3443"), 1.0, true)
+
+
+func _input(event: InputEvent) -> void:
+	# Handle Alt+Enter before the Enter shortcut can start or resume a game.
+	if event.is_action_pressed("toggle_fullscreen"):
+		toggle_fullscreen()
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -112,6 +126,36 @@ func toggle_pause() -> void:
 func toggle_sound() -> void:
 	audio.enabled = not audio.enabled
 	hud.set_sound(audio.enabled)
+
+
+func toggle_fullscreen() -> void:
+	var window: Window = get_window()
+	if _is_fullscreen():
+		window.mode = Window.MODE_WINDOWED
+		window.size = _windowed_size
+		window.position = _windowed_position
+		window.mode = _windowed_mode
+	else:
+		_remember_window()
+		window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN
+	_update_fullscreen_button()
+
+
+func _is_fullscreen() -> bool:
+	return get_window().mode in [Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN]
+
+
+func _remember_window() -> void:
+	if _is_fullscreen():
+		return
+	var window: Window = get_window()
+	_windowed_size = window.size
+	_windowed_position = window.position
+	_windowed_mode = Window.MODE_MAXIMIZED if window.mode == Window.MODE_MAXIMIZED else Window.MODE_WINDOWED
+
+
+func _update_fullscreen_button() -> void:
+	hud.set_fullscreen(_is_fullscreen())
 
 
 func rotate_board(step: int) -> void:

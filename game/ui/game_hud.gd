@@ -5,6 +5,7 @@ signal start_requested
 signal restart_requested
 signal pause_requested
 signal sound_requested
+signal fullscreen_requested
 
 const INK := Color("e3eeef")
 const MUTED := Color("819ca9")
@@ -26,6 +27,7 @@ var _loads: Array[Label] = []
 var _ticks: Array[ColorRect] = []
 var _pause: Button
 var _sound: Button
+var _fullscreen: Button
 var _fast_hint: Label
 var _overlay: ColorRect
 var _overlay_title: Label
@@ -94,6 +96,10 @@ func set_sound(enabled: bool) -> void:
 	_sound.text = "声音 开" if enabled else "声音 关"
 
 
+func set_fullscreen(enabled: bool) -> void:
+	_fullscreen.text = "F11 窗口" if enabled else "F11 全屏"
+
+
 func show_gain(points: int, combo: int) -> void:
 	_gain.text = "+%d   连续 ×%d" % [points, combo]
 	_gain_time = 1.2
@@ -133,7 +139,9 @@ func hide_overlay() -> void:
 func _build_header() -> void:
 	_label(_root, "HexElim", Vector2(40, 22), Vector2(180, 44), 32, INK)
 	_label(_root, "六角消除", Vector2(224, 32), Vector2(140, 28), 15, MUTED)
-	_label(_root, "首个可玩版本  /  0.1", Vector2(824, 31), Vector2(210, 28), 13, MUTED)
+	_label(_root, "试玩版  /  %s" % ProjectSettings.get_setting("application/config/version"), Vector2(740, 31), Vector2(174, 28), 13, MUTED)
+	_fullscreen = _button(_root, "F11 全屏", Vector2(922, 28), Vector2(106, 34), false)
+	_fullscreen.pressed.connect(func() -> void: fullscreen_requested.emit())
 	_pause = _button(_root, "P 暂停", Vector2(1040, 28), Vector2(94, 34), false)
 	_pause.pressed.connect(func() -> void: pause_requested.emit())
 	_sound = _button(_root, "声音 开", Vector2(1146, 28), Vector2(94, 34), false)
@@ -195,7 +203,8 @@ func _build_footer() -> void:
 	_label(_root, "D  顺时针", Vector2(338, 661), Vector2(155, 30), 14, INK)
 	_fast_hint = _label(_root, "按住 S  加速下落", Vector2(535, 661), Vector2(190, 30), 14, INK)
 	_label(_root, "P / Esc  暂停", Vector2(780, 661), Vector2(170, 30), 14, INK)
-	_label(_root, "R  重开", Vector2(1004, 661), Vector2(120, 30), 14, INK)
+	_label(_root, "R  重开", Vector2(980, 661), Vector2(90, 30), 14, INK)
+	_label(_root, "F11  全屏", Vector2(1100, 661), Vector2(120, 30), 14, INK)
 
 
 func _build_overlay() -> void:
