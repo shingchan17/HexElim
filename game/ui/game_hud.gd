@@ -40,6 +40,9 @@ var _overlay_hint: Label
 var _overlay_mode: String = "ready"
 var _gain: Label
 var _gain_time: float = 0.0
+var _combo_emphasized: bool = false
+var _fast_emphasized: bool = false
+var _load_cache := PackedInt32Array([-1, -1, -1, -1, -1, -1])
 
 
 func _ready() -> void:
@@ -74,7 +77,9 @@ func update_display(data: Dictionary) -> void:
 	_best.text = "会话最佳   %d" % int(data["best"])
 	var combo: int = int(data["combo"])
 	_combo.text = "×%d" % maxi(combo, 1)
-	_combo.add_theme_color_override("font_color", GOLD if combo > 1 else MINT)
+	if _combo_emphasized != (combo > 1):
+		_combo_emphasized = combo > 1
+		_combo.add_theme_color_override("font_color", GOLD if _combo_emphasized else MINT)
 	_formula.text = "%d × 方块数 × 连续次数" % int(data["points_per_block"])
 	_combo_bar.size.x = 192.0 * clampf(float(data["buff"]) / float(data["buff_duration"]), 0.0, 1.0)
 	_combo_hint.text = "剩余 %.1f 秒 · 再消除，倍率 +1" % float(data["buff"]) if combo > 0 else "消除同色方块，开启连续窗口"
@@ -83,9 +88,14 @@ func update_display(data: Dictionary) -> void:
 	_cleared.text = "已消除  %d 块" % int(data["cleared"])
 	_speed.text = "下落速度  %.1f×" % float(data["speed_scale"])
 	_pause.disabled = not bool(data["can_pause"])
-	_fast_hint.add_theme_color_override("font_color", GOLD if bool(data["fast"]) else INK)
+	if _fast_emphasized != bool(data["fast"]):
+		_fast_emphasized = bool(data["fast"])
+		_fast_hint.add_theme_color_override("font_color", GOLD if _fast_emphasized else INK)
 	for direction: int in range(6):
 		var count: int = int(data["loads"][direction])
+		if _load_cache[direction] == count:
+			continue
+		_load_cache[direction] = count
 		_loads[direction].text = "%d/10" % count
 		for depth: int in range(10):
 			_ticks[direction * 10 + depth].color = Color("ef7772") if count >= 8 else MINT

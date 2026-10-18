@@ -22,6 +22,7 @@ func _run() -> void:
 	_test_fall_and_speed()
 	_test_landing_and_scoring()
 	_test_chain_reaction()
+	_test_continuous_clear_motion()
 	_test_overflow_and_restart()
 	_test_long_run()
 	_scene.free()
@@ -223,6 +224,69 @@ func _test_chain_reaction() -> void:
 	_check(_scene.scoring.total_score == 54, "second cascade round earns thirty-six")
 	_check(_scene.board.block_count() == 0, "actual cascade resolves to an empty board")
 	_check(_scene.scoring.consecutive_clear_count == 2, "cascade advances continuous clear count")
+
+
+func _test_continuous_clear_motion() -> void:
+	_scene.start_game()
+	_scene.board.stacks[0] = PackedInt32Array([0, 0, 0, 1])
+	_add_piece(3, 2, 250.0)
+	_add_piece(0, 3, 125.0)
+	_add_piece(2, 3, 56.6)
+	_scene._resolve_matches()
+	var initial_offset: float = _scene.board_view.stack_offsets[Vector2i(0, 0)]
+	_scene.step_game(0.02)
+	_check(is_equal_approx(float(_scene.falling_blocks[0]["distance"]), 248.56), "airborne pieces keep falling during a clear")
+	_check(_scene.board.stacks[2] == PackedInt32Array([3]), "an unaffected side accepts arrivals during compaction")
+	_check(_scene.board.stacks[0].size() == 1, "arrivals do not attach inside a moving stack")
+	var offset: float = _scene.board_view.stack_offsets[Vector2i(0, 0)]
+	_check(offset > 0.0 and offset < initial_offset, "compaction advances smoothly on the game clock")
+	var visual_top: float = _scene.rules.core_apothem + 1.5 * _scene.rules.block_thickness + offset
+	_check(float(_scene.falling_blocks[1]["distance"]) >= visual_top, "incoming blocks stay outside the animated top")
+	_scene.toggle_pause()
+	_scene.step_game(1.0)
+	_scene.board_view._process(1.0)
+	_check(is_equal_approx(float(_scene.board_view.stack_offsets[Vector2i(0, 0)]), offset), "pause freezes compaction")
+	_check(is_equal_approx(float(_scene.falling_blocks[0]["distance"]), 248.56), "pause still freezes continuous fall")
+	_scene.toggle_pause()
+	_scene.step_game(0.02, true)
+	_check(is_equal_approx(float(_scene.falling_blocks[0]["distance"]), 242.8), "fast fall keeps working during a clear")
+	_scene.step_game(0.11)
+	_check(_scene.board_view.stack_offsets.is_empty(), "all compaction offsets finish within the animation duration")
+	_scene.start_game()
+	_scene.board.stacks[0] = PackedInt32Array([1, 0, 0, 0, 1])
+	_scene.board.stacks[1] = PackedInt32Array([1])
+	_add_piece(3, 2, 56.6)
+	_scene._resolve_matches()
+	_scene.step_game(0.02)
+	_check(_scene.board.stacks[3] == PackedInt32Array([2]), "unrelated arrivals do not wait for a cascade")
+	_check(_scene.scoring.total_score == 18, "an unrelated landing does not trigger an early cascade")
+	_scene.step_game(0.13)
+	_check(_scene.scoring.total_score == 54, "settled compaction still triggers the next combo round")
+	_scene.start_game()
+	_scene.board.stacks[0] = PackedInt32Array([0, 1, 1])
+	_scene.board.stacks[1] = PackedInt32Array([0])
+	_scene.board.stacks[2] = PackedInt32Array([0])
+	_scene.board.stacks[5] = PackedInt32Array([1])
+	_add_piece(0, 1, 108.0)
+	_scene._resolve_matches()
+	_scene.step_game(0.15, true)
+	_check(_scene.scoring.total_score == 54, "a finishing cascade resolves before a same-frame new arrival")
+	_scene.start_game()
+	_scene.board.stacks[0] = PackedInt32Array([0, 0, 0, 1])
+	_add_piece(3, 2, 250.0)
+	_scene._resolve_matches()
+	for frame: int in range(16):
+		var previous: float = _scene.falling_blocks[0]["distance"]
+		_scene.step_game(1.0 / 60.0)
+		_check(float(_scene.falling_blocks[0]["distance"]) < previous, "no clear-induced frozen fall frame")
+	_scene.start_game()
+	for round_index: int in range(2):
+		for side: int in range(6):
+			_scene.board.stacks[side] = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+		_scene._resolve_matches()
+		_check(_scene.board_view.particles.size() <= 96, "large overlapping clears keep a bounded particle count")
+	_scene.start_game()
+	_check(_scene.board_view.stack_offsets.is_empty() and _scene.board_view.particles.is_empty(), "restart removes pending compaction and particles")
 
 
 func _test_overflow_and_restart() -> void:

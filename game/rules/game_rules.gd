@@ -36,7 +36,7 @@ enum BlockColor { RED, YELLOW, GREEN, BLUE }
 @export var maximum_fall_speed: float = 180.0
 @export var fast_fall_multiplier: float = 4.0
 @export var rotation_duration: float = 0.14
-@export var clear_animation_duration: float = 0.22
+@export var clear_animation_duration: float = 0.14
 
 
 func get_fall_speed(score: int) -> float:

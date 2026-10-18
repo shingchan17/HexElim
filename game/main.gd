@@ -180,12 +180,17 @@ func step_game(delta: float, accelerated: bool = false) -> void:
 		_spawn_wave()
 		current_wave_interval = rules.get_spawn_interval(scoring.total_score)
 		next_wave_time += current_wave_interval
-	if _resolution_time > 0.0:
+	var was_compacting: bool = _resolution_time > 0.0
+	if was_compacting:
 		_resolution_time = maxf(0.0, _resolution_time - delta)
+		board_view.advance_compaction(delta)
+		if board_view.stack_offsets.is_empty():
+			_resolution_time = 0.0
 		if _resolution_time <= 0.0:
 			_resolve_matches()
-		return
-	_move_falling_blocks(delta, accelerated)
+	var landed: bool = _move_falling_blocks(delta, accelerated)
+	if state == RunState.PLAYING and _resolution_time <= 0.0 and landed:
+		_resolve_matches()
 
 
 func _update_rotation(delta: float) -> void:
@@ -206,7 +211,7 @@ func _spawn_wave() -> void:
 		})
 
 
-func _move_falling_blocks(delta: float, accelerated: bool) -> void:
+func _move_falling_blocks(delta: float, accelerated: bool) -> bool:
 	var speed: float = rules.get_fall_speed(scoring.total_score)
 	if accelerated:
 		speed *= rules.fast_fall_multiplier
@@ -215,19 +220,23 @@ func _move_falling_blocks(delta: float, accelerated: bool) -> void:
 	while index < falling_blocks.size():
 		var block: Dictionary = falling_blocks[index]
 		var side: int = board.local_side(int(block["direction"]))
-		var target: float = rules.core_apothem + (board.stacks[side].size() + 0.5) * rules.block_thickness
+		var count: int = board.stacks[side].size()
+		var top_offset: float = float(board_view.stack_offsets.get(Vector2i(side, count - 1), 0.0))
+		var target: float = rules.core_apothem + (count + 0.5) * rules.block_thickness + top_offset
 		block["distance"] = maxf(target, float(block["distance"]) - speed * delta)
-		if float(block["distance"]) <= target and _rotation_time <= 0.0:
+		# Keep moving toward a collapsing stack, but attach only when it settles.
+		# Other sides can accept pieces while this side is still animating.
+		if float(block["distance"]) <= target and _rotation_time <= 0.0 and top_offset <= 0.0:
 			if not board.place(int(block["direction"]), int(block["color"])):
 				_end_game(int(block["direction"]))
-				return
+				return false
 			falling_blocks.remove_at(index)
 			landed = true
 		else:
 			index += 1
 	if landed:
 		audio.play_cue("land")
-		_resolve_matches()
+	return landed
 
 
 func _resolve_matches() -> void:
@@ -235,11 +244,12 @@ func _resolve_matches() -> void:
 	if matches.is_empty():
 		return
 	board_view.emit_clear(matches)
-	board_view.stack_offsets = board.remove_cells(matches)
+	var offsets: Dictionary = board.remove_cells(matches)
+	board_view.begin_compaction(offsets)
 	var points: int = scoring.register_clear(matches.size())
 	cleared_blocks += matches.size()
 	best_score = maxi(best_score, scoring.total_score)
-	_resolution_time = rules.clear_animation_duration
+	_resolution_time = rules.clear_animation_duration if not offsets.is_empty() else 0.0
 	hud.show_gain(points, scoring.consecutive_clear_count)
 	audio.play_cue("clear", minf(1.0 + (scoring.consecutive_clear_count - 1) * 0.08, 1.8))
 

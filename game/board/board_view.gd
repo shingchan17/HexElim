@@ -1,6 +1,11 @@
 class_name BoardView
 extends Node2D
 
+const MAX_PARTICLES: int = 96
+const PARTICLES_PER_CELL: int = 4
+const CLEAR_FLASH_DURATION: float = 0.14
+const Backdrop = preload("res://game/board/board_backdrop.gd")
+
 @export var rules: GameRules = preload("res://game/rules/default_rules.tres")
 
 var model: BoardModel
@@ -14,16 +19,37 @@ var bursts: Array[Dictionary] = []
 var pulse: float = 0.0
 var _effect_random := RandomNumberGenerator.new()
 var _font: Font = ThemeDB.fallback_font
+var _compaction_origins: Dictionary = {}
+var _compaction_elapsed: float = 0.0
+var _backdrop: Backdrop
+var _grid_geometry := Vector3.ZERO
+
+
+func _ready() -> void:
+	_backdrop = Backdrop.new()
+	_backdrop.name = "GridBackdrop"
+	_backdrop.show_behind_parent = true
+	add_child(_backdrop)
+	_update_grid_geometry()
+
+
+func _update_grid_geometry() -> void:
+	var geometry := Vector3(rules.core_apothem, rules.block_thickness, rules.max_blocks_per_side)
+	if geometry == _grid_geometry:
+		return
+	_grid_geometry = geometry
+	var polygons: Array[PackedVector2Array] = []
+	for side: int in range(GameRules.SIDE_COUNT):
+		for depth: int in range(rules.max_blocks_per_side):
+			polygons.append(cell_polygon(side, depth))
+	_backdrop.configure(polygons)
 
 
 func _process(delta: float) -> void:
+	_update_grid_geometry()
+	_backdrop.rotation = board_angle
 	if not frozen:
 		pulse += delta
-		for cell: Vector2i in stack_offsets.keys():
-			var collapse_speed: float = rules.block_thickness * rules.max_blocks_per_side / rules.clear_animation_duration
-			stack_offsets[cell] = move_toward(float(stack_offsets[cell]), 0.0, delta * collapse_speed)
-			if float(stack_offsets[cell]) <= 0.0:
-				stack_offsets.erase(cell)
 		for index: int in range(particles.size() - 1, -1, -1):
 			particles[index]["life"] -= delta
 			particles[index]["position"] += particles[index]["velocity"] * delta
@@ -39,6 +65,8 @@ func _process(delta: float) -> void:
 
 func reset_effects() -> void:
 	stack_offsets.clear()
+	_compaction_origins.clear()
+	_compaction_elapsed = 0.0
 	particles.clear()
 	bursts.clear()
 	board_angle = 0.0
@@ -46,31 +74,55 @@ func reset_effects() -> void:
 	pulse = 0.0
 
 
+func begin_compaction(offsets: Dictionary) -> void:
+	_compaction_origins = offsets
+	stack_offsets = offsets.duplicate()
+	_compaction_elapsed = 0.0
+
+
+func advance_compaction(delta: float) -> void:
+	if _compaction_origins.is_empty():
+		return
+	_compaction_elapsed += delta
+	var progress: float = minf(_compaction_elapsed / maxf(rules.clear_animation_duration, 0.001), 1.0)
+	if progress >= 1.0:
+		stack_offsets.clear()
+		_compaction_origins.clear()
+		return
+	var remaining: float = pow(1.0 - progress, 3.0)
+	for cell: Vector2i in _compaction_origins:
+		stack_offsets[cell] = float(_compaction_origins[cell]) * remaining
+
+
 func emit_clear(cells: Array[Vector2i]) -> void:
-	for cell: Vector2i in cells:
+	if cells.is_empty():
+		return
+	var budget: int = mini(maxi(0, MAX_PARTICLES - particles.size()), cells.size() * PARTICLES_PER_CELL)
+	var per_cell: int = floori(float(budget) / cells.size())
+	var extra: int = budget % cells.size()
+	for cell_index: int in range(cells.size()):
+		var cell: Vector2i = cells[cell_index]
 		var color: Color = rules.block_colors[model.stacks[cell.x][cell.y]]
 		var points: PackedVector2Array = cell_polygon(cell.x, cell.y)
 		for index: int in range(points.size()):
 			points[index] = points[index].rotated(board_angle)
-		bursts.append({"points": points, "color": color, "life": 0.3})
+		bursts.append({"points": points, "color": color, "life": CLEAR_FLASH_DURATION})
 		var center: Vector2 = side_normal(cell.x).rotated(board_angle) * (
 			rules.core_apothem + (cell.y + 0.5) * rules.block_thickness
 		)
-		for index: int in range(8):
+		for index: int in range(per_cell + (1 if cell_index < extra else 0)):
 			var angle: float = _effect_random.randf_range(0.0, TAU)
 			particles.append({
 				"position": center,
 				"velocity": Vector2.from_angle(angle) * _effect_random.randf_range(35.0, 150.0),
 				"color": color,
-				"life": _effect_random.randf_range(0.3, 0.65),
+				"life": _effect_random.randf_range(0.2, 0.4),
 			})
 
 
 func _draw() -> void:
 	if model == null:
 		return
-	draw_circle(Vector2.ZERO, 271.0, Color(0.04, 0.085, 0.12, 0.6))
-	draw_arc(Vector2.ZERO, 269.0, 0.0, TAU, 128, Color(0.2, 0.45, 0.49, 0.2), 1.0, true)
 	var limit: float = rules.core_apothem + rules.max_blocks_per_side * rules.block_thickness
 	for side: int in range(GameRules.SIDE_COUNT):
 		var normal: Vector2 = side_normal(side)
@@ -86,19 +138,11 @@ func _draw() -> void:
 			draw_circle(normal * (limit + 20.0), 7.0, Color("ef7772"))
 	draw_set_transform(Vector2.ZERO, board_angle)
 	for side: int in range(GameRules.SIDE_COUNT):
-		for depth: int in range(rules.max_blocks_per_side):
-			var grid: PackedVector2Array = cell_polygon(side, depth)
-			draw_colored_polygon(grid, Color(0.07, 0.13, 0.18, 0.5))
-			_stroke(grid, Color(0.22, 0.38, 0.44, 0.23), 0.7)
 		for depth: int in range(model.stacks[side].size()):
 			var offset: float = float(stack_offsets.get(Vector2i(side, depth), 0.0))
 			var points: PackedVector2Array = cell_polygon(side, depth, offset)
 			var color: Color = rules.block_colors[model.stacks[side][depth]]
 			draw_colored_polygon(points, color)
-			_stroke(points, color.lightened(0.3), 0.9)
-			var marker: Vector2 = side_normal(side) * (rules.core_apothem + (depth + 0.5) * rules.block_thickness + offset)
-			var tangent: Vector2 = side_normal(side).orthogonal()
-			draw_line(marker - tangent * 4.0, marker + tangent * 4.0, Color(1, 1, 1, 0.38), 1.4, true)
 	var core: PackedVector2Array = hexagon(rules.core_apothem - 3.0)
 	draw_colored_polygon(core, Color("13313e"))
 	_stroke(core, Color("75dac5"), 1.8)
@@ -113,10 +157,9 @@ func _draw() -> void:
 		var points: PackedVector2Array = _band_points(radius - 7.5, radius + 7.5, side)
 		var color: Color = rules.block_colors[int(block["color"])]
 		draw_colored_polygon(points, color)
-		_stroke(points, color.lightened(0.4), 1.2)
 	for burst: Dictionary in bursts:
 		var color: Color = Color(burst["color"]).lightened(0.5)
-		color.a = clampf(float(burst["life"]) / 0.3, 0.0, 1.0)
+		color.a = clampf(float(burst["life"]) / CLEAR_FLASH_DURATION, 0.0, 1.0)
 		draw_colored_polygon(burst["points"], color)
 	for particle: Dictionary in particles:
 		var color: Color = particle["color"]

@@ -1,6 +1,6 @@
 # HexElim（六角消除）
 
-Godot 4.7 / GDScript / 2D。当前版本为 **0.1.3，初始波次周期调整为 2 秒**。
+Godot 4.7 / GDScript / 2D。当前版本为 **0.1.5，优化消除与收拢的流畅度**。
 
 旋转中心六边形，接住四种颜色的方块，让至少三个同色方块相连并消除。在六边各十层的空间内持续生存，通过连续消除提高得分。
 
@@ -37,7 +37,7 @@ A/D 每次按下执行一步，旋转动画约 0.14 秒；动画进行中不接�
 - 每波随机 1–6 块，来向不重复，四种颜色等概率。
 - 同边相邻层，以及相邻两边的同一层互相连接；第 6 边与第 1 边也相邻。只碰角点不连接。
 - 至少三个同色方块构成连通组即可消除。同次落定产生的所有合格组合并结算一次；收拢后产生的新组作为下一次连锁结算。
-- 消除后，外层方块向中心收拢。消除与收拢反馈约 0.22 秒，此时空中方块短暂停留。
+- 消除后，外层方块用约 0.14 秒平滑收拢，空中方块持续下落。未受影响的边可正常接块，正在收拢的边在动画完成后接块，避免穿插。
 - 每边可以保留 10 块；下一块到达时无空位则游戏结束。第 10 块若能触发消除，可正常腾出空间。
 - 当前“会话最佳”在本次启动中保留，关闭游戏后重置。
 
@@ -80,6 +80,7 @@ game/main.tscn                主场景
 game/main.gd                  游戏状态、模拟时钟、输入与玩法协调
 game/board/board_model.gd     棋盘数据、邻接匹配、容量与收拢
 game/board/board_view.gd      棋盘、来块与动画特效
+game/board/board_backdrop.gd  缓存的棋盘背景与网格
 game/spawning/wave_generator.gd  可复现种子的随机波次
 game/scoring/score_manager.gd 连续计分状态
 game/rules/game_rules.gd     规则参数与计分、难度公式
@@ -90,6 +91,7 @@ addons/hexelim_debug_preview/  编辑器内的 F5 预览缩放配置
 tests/test_scoring.gd        计分与时间窗口测试
 tests/test_gameplay.gd       棋盘与完整玩法流程测试
 tests/test_display.gd        实际窗口缩放、鼠标对齐与全屏测试
+tests/benchmark_clears.gd    实际渲染的连续大批消除压力测试
 docs/game_design.md          当前规则和实现说明
 docs/playtest_review.md      试玩审查指南
 ```
@@ -112,6 +114,14 @@ $taskGodotExe = 'D:\steamappliance\steamapps\common\Godot Engine\godot.windows.o
 首次在新机器运行命令行测试前，先在编辑器导入项目，或运行一次 `--headless --editor --path . --quit`，注册脚本类与导入图标。
 
 显示测试需要真实桌面窗口，不使用 `--headless`；会短暂切换全屏并保存截图到 `artifacts/`，默认尺寸检查要求桌面能容纳 1600×900 窗口。
+
+消除压力测试以 120 FPS 上限渲染 360 个采样帧，期间反复触发 60 块同时消除，记录粒子峰值、处理耗时及消除时的下落停帧数：
+
+```powershell
+& $taskGodotExe --path . --audio-driver Dummy --disable-vsync --max-fps 120 --script res://tests/benchmark_clears.gd
+```
+
+结果写入 `artifacts/clear_profile_current.json`；性能数值受设备和运行环境影响，不作为跨设备测试断言。
 
 受限验证环境可能提示无法读取系统根证书、写入 `user://` 缓存；验证日志已保留。这些环境提示没有阻止项目运行、界面渲染或 Windows 导出。测试所用的引擎副本位于被忽略的临时目录，完成后会清理可执行文件和模板。
 
