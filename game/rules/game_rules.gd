@@ -19,7 +19,7 @@ enum BlockColor { RED, YELLOW, GREEN, BLUE }
 
 @export_category("Scoring")
 @export_range(1, 100, 1) var points_per_block: int = 6
-@export_range(0.1, 30.0, 0.1) var score_buff_duration: float = 4.0
+@export_range(0.1, 30.0, 0.1) var score_buff_duration: float = 5.0
 
 @export_category("Spawn interval")
 @export_range(0.1, 30.0, 0.1) var initial_spawn_interval: float = 2.0

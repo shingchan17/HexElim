@@ -1,6 +1,6 @@
 # HexElim（六角消除）
 
-Godot 4.7 / GDScript / 2D。当前版本为 **0.1.5，优化消除与收拢的流畅度**。
+Godot 4.7 / GDScript / 2D。当前版本为 **0.1.7，中心得分与环形增益倒计时**。
 
 旋转中心六边形，接住四种颜色的方块，让至少三个同色方块相连并消除。在六边各十层的空间内持续生存，通过连续消除提高得分。
 
@@ -47,7 +47,9 @@ A/D 每次按下执行一步，旋转动画约 0.14 秒；动画进行中不接�
 本次分数 = 6 × 本次消除块数 × 连续消除次数
 ```
 
-首次次数为 1，每次在前一次消除后的 4 秒内续上，次数加 1，并重新开启完整的 4 秒窗口。窗口到期，下一次从 1 开始。例如连续消除三次、每次三块，分别得到 **18、36、54** 分。
+首次次数为 1，每次在前一次消除后的 5 秒内续上，次数加 1，并重新开启完整的 5 秒窗口。窗口到期，下一次从 1 开始。例如连续消除三次、每次三块，分别得到 **18、36、54** 分。
+
+中心六边形也显示本局总分，旋转时数字保持正向。棋盘最外层六边形的外接圆上显示增益进度环：颜色取最后一次消除的颜色；同批含多色时，取最后一组的颜色。圆环从顶部开始顺时针消耗，5 秒耗尽时增益同时结束；继续消除会换色并回满，暂停时冻结。
 
 ```text
 档位 = floor(总分 / 1000)
@@ -91,6 +93,7 @@ addons/hexelim_debug_preview/  编辑器内的 F5 预览缩放配置
 tests/test_scoring.gd        计分与时间窗口测试
 tests/test_gameplay.gd       棋盘与完整玩法流程测试
 tests/test_display.gd        实际窗口缩放、鼠标对齐与全屏测试
+tests/test_board_feedback.gd 中心得分及圆环方向、颜色、倒计时的渲染测试
 tests/benchmark_clears.gd    实际渲染的连续大批消除压力测试
 docs/game_design.md          当前规则和实现说明
 docs/playtest_review.md      试玩审查指南
@@ -109,6 +112,7 @@ $taskGodotExe = 'D:\steamappliance\steamapps\common\Godot Engine\godot.windows.o
 & $taskGodotExe --headless --path . --script res://tests/test_scoring.gd
 & $taskGodotExe --headless --path . --script res://tests/test_gameplay.gd
 & $taskGodotExe --path . --audio-driver Dummy --script res://tests/test_display.gd
+& $taskGodotExe --path . --audio-driver Dummy --script res://tests/test_board_feedback.gd
 ```
 
 首次在新机器运行命令行测试前，先在编辑器导入项目，或运行一次 `--headless --editor --path . --quit`，注册脚本类与导入图标。

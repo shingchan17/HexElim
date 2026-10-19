@@ -36,6 +36,7 @@ func _ready() -> void:
 	# One simulation clock advances movement and scoring; pause freezes both.
 	scoring.set_process(false)
 	board_view.model = board
+	board_view.scoring = scoring
 	board_view.rules = rules
 	board_view.falling_blocks = falling_blocks
 	hud.start_requested.connect(start_game)
